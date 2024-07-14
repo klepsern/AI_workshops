@@ -1,0 +1,338 @@
+---
+title: "NYU_GPH_AI_RMD"
+author: "Nicklas Klepser"
+date: "2024-06-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r , echo=FALSE, message=FALSE}
+library(RODBC)
+library(epitools)
+library(dsrTest)
+library(knitr)
+library(rvest)
+library(readxl)
+library(stringdist)
+library(dplyr)
+library(writexl)
+library(reshape)
+library(survival)
+library(mstate)
+library(foreign)
+library(haven)
+library(ggplot2)
+library(mosaic)
+library(lessR)
+library(sjlabelled)
+library(rlang)
+library(tidyverse)
+library(survey)
+library(gtsummary)
+library(utils)
+library(tidyr)
+library(rms)
+library(jtools)
+library(ggplot2)
+```
+
+
+
+
+
+#NYU
+```{r}
+
+NYU_pre <- read.csv("C:/NYU_GPH_AI_2024/NYU-Pre-Survey.csv")
+NYU_pre <- NYU_pre[NYU_pre$Username != "mam2073@gmail.com", ]
+NYU_pre <- NYU_pre[NYU_pre$Username != "madhu.mazumdar@mountsinai.org", ]
+NYU_pre <- NYU_pre[!duplicated(NYU_pre$Username), ]
+
+pre_count<-nrow(NYU_pre)
+NYU_pre <- NYU_pre[, !(names(NYU_pre) == "Timestamp")]
+NYU_pre <- NYU_pre[, !(names(NYU_pre) == "Username")]
+NYU_pre <- NYU_pre[, !(names(NYU_pre) == "Terminal.degree")]
+NYU_pre <- NYU_pre[, !(names(NYU_pre) == "Area")]
+NYU_pre[] <- lapply(NYU_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("not at all", x, ignore.case = TRUE)] <- 1
+  x[grepl("slightly", x, ignore.case = TRUE)] <- 2
+  x[grepl("moderately", x, ignore.case = TRUE)] <- 3
+  x[grepl("very", x, ignore.case = TRUE)] <- 4
+  x[grepl("extremely", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+NYU_pre[] <- lapply(NYU_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("Strongly diagree", x, ignore.case = TRUE)] <- 1
+  x[grepl("diagree", x, ignore.case = TRUE)] <- 2
+  x[grepl("Neutral", x, ignore.case = TRUE)] <- 3
+  x[grepl("Strongly agree", x, ignore.case = TRUE)] <- 5
+  x[grepl("Agree", x, ignore.case = TRUE)] <- 4
+
+  as.factor(x)
+})
+
+NYU_pre[] <- lapply(NYU_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("No under", x, ignore.case = TRUE)] <- 1
+  x[grepl("Limited", x, ignore.case = TRUE)] <- 2
+  x[grepl("Some", x, ignore.case = TRUE)] <- 3
+  x[grepl("Good", x, ignore.case = TRUE)] <- 4
+  x[grepl("Comprehensive", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+colnames(NYU_pre)
+head(NYU_pre)
+```
+  
+```{r}  
+  NYU_post <- read.csv("C:/NYU_GPH_AI_2024/NYU-Post-Survey.csv")
+
+NYU_post <- NYU_post[NYU_post$Username != "mam2073@gmail.com", ]
+NYU_post <- NYU_post[NYU_post$Username != "madhu.mazumdar@mountsinai.org", ]
+NYU_post <- NYU_post[!duplicated(NYU_post$Username), ]
+
+post_count<-nrow(NYU_post)
+NYU_post <- NYU_post[, !(names(NYU_post) == "Timestamp")]
+NYU_post <- NYU_post[, !(names(NYU_post) == "Username")]
+NYU_post <- NYU_post[, !(names(NYU_post) == "Terminal.degree")]
+NYU_post <- NYU_post[, !(names(NYU_post) == "Area")]
+
+NYU_post <- NYU_post[, !(names(NYU_post) == "Which.instructional.element.did.you.find.most.beneficial.for.your.learning.")]
+NYU_post <- NYU_post[, !(names(NYU_post) == "What.were.the.strengths.of.the.workshop.")]
+NYU_post <- NYU_post[, !(names(NYU_post) == "What.aspects.of.the.workshop..if.any..do.you.believe.could.be.improved..How.")]
+NYU_post <- NYU_post[, !(names(NYU_post) == "Were.there.any.specific.topics.or.areas.related.to.AI.in.healthcare.that.you.wished.were.covered.in.more.detail.")]
+NYU_post <- NYU_post[, !(names(NYU_post) == "After.participating.in.this.workshop..what.is.the.one.step.you.would.take.for.riding.the.AI.wave..")]
+
+NYU_post <- NYU_post[, !(names(NYU_post) == "Were.there.any.specific.topics.or.areas.related.to.AI.in.public.health.that.you.wished.were.covered.in.more.detail..")]
+
+NYU_post[] <- lapply(NYU_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("not at all", x, ignore.case = TRUE)] <- 1
+  x[grepl("slightly", x, ignore.case = TRUE)] <- 2
+  x[grepl("moderately", x, ignore.case = TRUE)] <- 3
+  x[grepl("very", x, ignore.case = TRUE)] <- 4
+  x[grepl("extremely", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+NYU_post[] <- lapply(NYU_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("Strongly diagree", x, ignore.case = TRUE)] <- 1
+  x[grepl("diagree", x, ignore.case = TRUE)] <- 2
+  x[grepl("Neutral", x, ignore.case = TRUE)] <- 3
+  x[grepl("Strongly agree", x, ignore.case = TRUE)] <- 5
+  x[grepl("Agree", x, ignore.case = TRUE)] <- 4
+
+  as.factor(x)
+})
+
+NYU_post[] <- lapply(NYU_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("No under", x, ignore.case = TRUE)] <- 1
+  x[grepl("Limited", x, ignore.case = TRUE)] <- 2
+  x[grepl("Some", x, ignore.case = TRUE)] <- 3
+  x[grepl("Good", x, ignore.case = TRUE)] <- 4
+  x[grepl("Comprehensive", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+colnames(NYU_post)
+head(NYU_post)
+```
+
+
+```{r}
+
+NYU_post <- NYU_post %>% 
+ # rename_at(vars(1), ~ c("How.well.do.you.feel.you.understand.the.fundamental.concepts.of.AI.")) %>%
+  rename_at(vars(6), ~ c("If.you.were.to.develop.an.AI.tool.for.your.research.or.practice..how.confident.would.you.be.identifying.and.engaging.key.partners..e.g...NYU..Technology.Opportunities...Ventures.office...")) %>%
+    rename_at(vars(7), ~ c("How.confident.are.you.in.understanding.the.ethical.and.privacy.considerations.associated.with.the.use.of.AI.technologies.")) %>%
+   rename_at(vars(8), ~ c("How.well.do.you.think.you.understand.the.potential.biases.that.may.exist.in.AI.algorithms.")) %>%
+  rename_at(vars(9), ~ c("How.well.do.you.think.you.understand.the.regulatory.landscape.governing.the.implementation.of.AI.in.your.field.or.industry."))
+
+
+colnames(NYU_post)
+head(NYU_post)
+```
+
+```{r}
+library(tidyr)
+library(dplyr)
+# Transpose and count responses for NYU_pre
+
+NYU_pre_transposed <- NYU_pre %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+
+# Transpose and count responses for NYU_post
+
+NYU_post_transposed <- NYU_post %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+ 
+# View the transposed data frames
+
+NYU_pre_transposed$PRE_POST <- "Pre"
+NYU_post_transposed$PRE_POST <- "Post"
+NYU<-rbind(NYU_pre_transposed, NYU_post_transposed)
+
+
+# Get unique values in the "question" column for NYU_pre_transposed and NYU_post_transposed
+pre_question_values <- unique(NYU_pre_transposed$question)
+post_question_values <- unique(NYU_post_transposed$question)
+
+# Find values in the "question" column of NYU_pre_transposed but not in NYU_post_transposed
+different_question_values <- setdiff(pre_question_values, post_question_values)
+
+# Print the different question values
+print(different_question_values)
+```
+
+
+```{r, echo = FALSE, results='hide'}
+
+new_colnames <- c("Question",  "1", "2", "3", "4", "5", "NA", "PRE/POST")
+
+# Rename the columns in NYU
+colnames(NYU) <- new_colnames
+
+# Check the updated column names
+colnames(NYU)
+
+NYU_counts<- NYU
+
+pre_count<-nrow(NYU_pre)
+post_count<-nrow(NYU_post)
+```
+
+```{r, echo = FALSE, results='hide'}
+# Convert the counts in columns 1:5 to percentages based on the values in the PRE/POST column
+NYU$`1` <- ifelse(NYU$`PRE/POST` == "Pre", NYU$`1` / pre_count * 100, NYU$`1` / post_count * 100)
+NYU$`2` <- ifelse(NYU$`PRE/POST` == "Pre", NYU$`2` / pre_count * 100, NYU$`2` / post_count * 100)
+NYU$`3` <- ifelse(NYU$`PRE/POST` == "Pre", NYU$`3` / pre_count * 100, NYU$`3` / post_count * 100)
+NYU$`4` <- ifelse(NYU$`PRE/POST` == "Pre", NYU$`4` / pre_count * 100, NYU$`4` / post_count * 100)
+NYU$`5` <- ifelse(NYU$`PRE/POST` == "Pre", NYU$`5` / pre_count * 100, NYU$`5` / post_count * 100)
+NYU$`NA` <- ifelse(NYU$`PRE/POST` == "Pre", NYU$`NA` / pre_count * 100, NYU$`NA` / post_count * 100)
+# Check the updated dataframe
+head(NYU, 25)
+```
+
+```{r}
+NYU$Question <- gsub("\\.", " ", NYU$Question)
+```
+
+```{r}
+
+pre_count <- nrow(NYU_pre)
+post_count <- nrow(NYU_post)
+
+# Define the labels dynamically based on the counts
+pre_label <- paste("Pre, n =", pre_count)
+post_label <- paste("Post, n =", post_count)
+
+```
+
+ #QUESTION COMPARISONS (PRE VS. POST)
+```{r, results='hide', fig.width=10}
+# Change factor levels to ensure Pre bars are displayed before Post bars
+NYU$`PRE/POST` <- factor(NYU$`PRE/POST`, levels = c("Pre", "Post"))
+
+setwd("C:/NYU_HISTOGRAMS")
+
+# Define output directory
+output_dir <- "plots/NYU/"
+
+# Create the directory if it does not exist
+dir.create(output_dir, showWarnings = FALSE)
+# Define colors for "Pre" and "Post"
+pre_color <- "#57068c"
+post_color <- "#ab82c5"
+
+# Iterate over each unique question
+for (question in unique(NYU$Question)) {
+  # Subset the data for the current question
+  question_data <- subset(NYU, Question == question)
+  
+  # Determine the available factors in PRE/POST column for this question
+  available_factors <- unique(question_data$`PRE/POST`)
+  
+  # Adjust the labels based on the presence of "Pre" and "Post"
+  labels <- if ("Pre" %in% available_factors & "Post" %in% available_factors) {
+    c(pre_label, post_label)
+  } else if ("Pre" %in% available_factors) {
+    pre_label
+  } else {
+    post_label
+  }
+  
+  # Reshape the data from wide to long format
+  question_data_long <- pivot_longer(question_data, cols = `1`:`NA`, names_to = "Rating", values_to = "Count")
+  
+   # Wrap the question title for the plot
+  wrapped_question <- paste(str_wrap(question, width = 100), collapse = "\n")
+  
+  # Plot for the current question
+  plot <- ggplot(question_data_long, aes(x = Rating, y = Count, fill = factor(`PRE/POST`))) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste("Question:\n", wrapped_question),  # Wrap the question title
+         x = "Rating",
+         y = "Percentage") +
+    scale_fill_manual(name = "PRE/POST",
+                      labels = labels,
+                      values = c("Pre" = pre_color, "Post" = post_color))  # Assigning colors based on labels
+  
+  # Print the plot
+  print(plot) 
+  
+  # Save the plot as an image
+  ggsave(filename = paste0(output_dir, "question_", question, ".png"),
+         plot = plot,
+         width = 10, height = 6, units = "in")
+}
+```
+```{r}
+# Create count table for NYU pre and post surveys
+count_table_pre <- NYU_pre %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+
+count_table_post <- NYU_post %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+
+# Add 'PRE/POST' column to each table
+count_table_pre$`PRE/POST` <- "Pre"
+count_table_post$`PRE/POST` <- "Post"
+
+# Combine pre and post count tables
+count_table <- bind_rows(count_table_pre, count_table_post)
+
+# Create percentage table
+percentage_table <- count_table
+percentage_table$`1` <- ifelse(percentage_table$`PRE/POST` == "Pre", percentage_table$`1` / pre_count * 100, percentage_table$`1` / post_count * 100)
+percentage_table$`2` <- ifelse(percentage_table$`PRE/POST` == "Pre", percentage_table$`2` / pre_count * 100, percentage_table$`2` / post_count * 100)
+percentage_table$`3` <- ifelse(percentage_table$`PRE/POST` == "Pre", percentage_table$`3` / pre_count * 100, percentage_table$`3` / post_count * 100)
+percentage_table$`4` <- ifelse(percentage_table$`PRE/POST` == "Pre", percentage_table$`4` / pre_count * 100, percentage_table$`4` / post_count * 100)
+percentage_table$`5` <- ifelse(percentage_table$`PRE/POST` == "Pre", percentage_table$`5` / pre_count * 100, percentage_table$`5` / post_count * 100)
+percentage_table$`NA` <- ifelse(percentage_table$`PRE/POST` == "Pre", percentage_table$`NA` / pre_count * 100, percentage_table$`NA` / post_count * 100)
+
+# Display the tables
+kable(count_table, caption = "Count Table for NYU Pre and Post Surveys")
+kable(percentage_table, caption = "Percentage Table for NYU Pre and Post Surveys")
+```
+

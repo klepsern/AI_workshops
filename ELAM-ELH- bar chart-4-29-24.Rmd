@@ -1,0 +1,484 @@
+---
+title: "ELH responses"
+output: html_document
+date: "2024-03-01"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r , echo=FALSE, message=FALSE}
+library(RODBC)
+library(epitools)
+library(dsrTest)
+library(knitr)
+library(rvest)
+library(readxl)
+library(stringdist)
+library(dplyr)
+library(writexl)
+library(reshape)
+library(survival)
+library(mstate)
+library(foreign)
+library(haven)
+library(ggplot2)
+library(mosaic)
+library(lessR)
+library(sjlabelled)
+library(rlang)
+library(tidyverse)
+library(survey)
+library(gtsummary)
+library(utils)
+library(tidyr)
+library(rms)
+library(jtools)
+library(ggplot2)
+```
+
+```{r}
+ELAM_pre <- read.csv("C:/ELAM_ 4-24-24/PRE_ELAM_2024.csv")
+colnames(ELAM_pre)
+ELAM_pre <- na.omit(ELAM_pre)
+pre_count_ELAM<-nrow(ELAM_pre)
+ELAM_post <- read.csv("C:/ELAM_ 4-24-24/Post_ELAM_2024.csv")
+ELAM_post <- na.omit(ELAM_post)
+
+colnames(ELAM_post)
+post_count_ELAM<-nrow(ELAM_post)
+
+
+library(tidyr)
+library(dplyr)
+# Transpose and count responses for ELAM_pre
+
+ELAM_pre_transposed <- ELAM_pre %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+
+# Transpose and count responses for ELAM_post
+
+ELAM_post_transposed <- ELAM_post %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+ 
+# View the transposed data frames
+
+ELAM_pre_transposed$PRE_POST <- "Pre"
+ELAM_post_transposed$PRE_POST <- "Post"
+ELAM<-rbind(ELAM_pre_transposed, ELAM_post_transposed)
+```
+
+```{r}
+# Get unique values in the "question" column for ELAM_pre_transposed and ELAM_post_transposed
+pre_question_values <- unique(ELAM_pre_transposed$question)
+post_question_values <- unique(ELAM_post_transposed$question)
+
+# Find values in the "question" column of ELAM_pre_transposed but not in ELAM_post_transposed
+different_question_values <- setdiff(post_question_values, pre_question_values)
+
+# Print the different question values
+print(different_question_values)
+```
+
+```{r, echo = FALSE, results='hide'}
+
+new_colnames <- c("Question",  "1", "2", "3", "4", "5", "PRE/POST")
+
+# Rename the columns in ELAM
+colnames(ELAM) <- new_colnames
+
+# Check the updated column names
+colnames(ELAM)
+ELAM_counts<- ELAM
+```
+
+```{r, echo = FALSE, results='hide'}
+# Convert the counts in columns 1:5 to percentages based on the values in the PRE/POST column
+ELAM$`1` <- ifelse(ELAM$`PRE/POST` == "Pre", ELAM$`1` / pre_count_ELAM * 100, ELAM$`1` / post_count_ELAM * 100)
+ELAM$`2` <- ifelse(ELAM$`PRE/POST` == "Pre", ELAM$`2` / pre_count_ELAM * 100, ELAM$`2` / post_count_ELAM * 100)
+ELAM$`3` <- ifelse(ELAM$`PRE/POST` == "Pre", ELAM$`3` / pre_count_ELAM * 100, ELAM$`3` / post_count_ELAM * 100)
+ELAM$`4` <- ifelse(ELAM$`PRE/POST` == "Pre", ELAM$`4` / pre_count_ELAM * 100, ELAM$`4` / post_count_ELAM * 100)
+ELAM$`5` <- ifelse(ELAM$`PRE/POST` == "Pre", ELAM$`5` / pre_count_ELAM * 100, ELAM$`5` / post_count_ELAM * 100)
+
+# Check the updated dataframe
+head(ELAM)
+
+```
+
+ #QUESTION COMPARISONS (PRE VS. POST)
+```{r, results='hide', fig.width=10}
+# Change factor levels to ensure Pre bars are displayed before Post bars
+ELAM$`PRE/POST` <- factor(ELAM$`PRE/POST`, levels = c("Pre", "Post"))
+
+setwd("C:/ELH-ELAM_histograms")
+
+# Define output directory
+output_dir <- "plots/ELAM/"
+
+# Create the directory if it does not exist
+dir.create(output_dir, showWarnings = FALSE)
+# Define colors for "Pre" and "Post"
+pre_color <- "#212070"
+post_color <- "#DC298D"
+
+# Iterate over each unique question
+for (question in unique(ELAM$Question)) {
+  # Subset the data for the current question
+  question_data <- subset(ELAM, Question == question)
+  
+  # Determine the available factors in PRE/POST column for this question
+  available_factors <- unique(question_data$`PRE/POST`)
+  
+  # Adjust the labels based on the presence of "Pre" and "Post"
+  labels <- if ("Pre" %in% available_factors & "Post" %in% available_factors) {
+    c("Pre, n = 71 ", "Post, n = 56 ")
+  } else if ("Pre" %in% available_factors) {
+    "Pre, n = 71"
+  } else {
+    "Post, n = 56"
+  }
+  
+  # Reshape the data from wide to long format
+  question_data_long <- pivot_longer(question_data, cols = `1`:`5`, names_to = "Rating", values_to = "Count")
+  
+  # Plot for the current question
+  plot <- ggplot(question_data_long, aes(x = Rating, y = Count, fill = factor(`PRE/POST`))) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste("Question:", question, "\n"),
+         x = "Rating",
+         y = "Percentage") +
+    scale_fill_manual(name = "PRE/POST",
+                      labels = labels,
+                      values = c("Pre" = pre_color, "Post" = post_color))  # Assigning colors based on labels
+  
+  # Print the plot
+  print(plot) 
+  
+    # Save the plot as an image
+  ggsave(filename = paste0(output_dir, "question_", question, ".png"),
+         plot = plot,
+         width = 10, height = 6, units = "in")
+}
+```
+
+
+#ELH
+```{r}
+
+ELH_pre <- read.csv("C:/ELAM_ 4-24-24/ELAM_4-24-24-R_PRE.csv")
+ELH_pre <- ELH_pre[ELH_pre$Username != "mam2073@gmail.com", ]
+ELH_pre <- ELH_pre[ELH_pre$Username != "madhu.mazumdar@mountsinai.org", ]
+
+pre_count<-nrow(ELH_pre)
+ELH_pre <- ELH_pre[, !(names(ELH_pre) == "Timestamp")]
+ELH_pre <- ELH_pre[, !(names(ELH_pre) == "Username")]
+ELH_pre <- ELH_pre[, !(names(ELH_pre) == "Terminal.degree")]
+ELH_pre <- ELH_pre[, !(names(ELH_pre) == "Area")]
+ELH_pre[] <- lapply(ELH_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("not at all", x, ignore.case = TRUE)] <- 1
+  x[grepl("slightly", x, ignore.case = TRUE)] <- 2
+  x[grepl("moderately", x, ignore.case = TRUE)] <- 3
+  x[grepl("very", x, ignore.case = TRUE)] <- 4
+  x[grepl("extremely", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+ELH_pre[] <- lapply(ELH_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("Strongly diagree", x, ignore.case = TRUE)] <- 1
+  x[grepl("diagree", x, ignore.case = TRUE)] <- 2
+  x[grepl("Neutral", x, ignore.case = TRUE)] <- 3
+  x[grepl("Agree", x, ignore.case = TRUE)] <- 4
+  x[grepl("Strongly agree", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+ELH_pre[] <- lapply(ELH_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("No under", x, ignore.case = TRUE)] <- 1
+  x[grepl("Limited", x, ignore.case = TRUE)] <- 2
+  x[grepl("Some", x, ignore.case = TRUE)] <- 3
+  x[grepl("Good", x, ignore.case = TRUE)] <- 4
+  x[grepl("Comprehensive", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+colnames(ELH_pre)
+head(ELH_pre)
+```
+  
+```{r}  
+  ELH_post <-  read.csv("C:/ELAM_ 4-24-24/NEW Post- Riding the AI Wave Evaluation Survey.csv")
+
+ELH_post <- ELH_post[ELH_post$Username != "mam2073@gmail.com", ]
+ELH_post <- ELH_post[ELH_post$Username != "madhu.mazumdar@mountsinai.org", ]
+
+post_count<-nrow(ELH_post)
+ELH_post <- ELH_post[, !(names(ELH_post) == "Timestamp")]
+ELH_post <- ELH_post[, !(names(ELH_post) == "Username")]
+ELH_post <- ELH_post[, !(names(ELH_post) == "Terminal.degree")]
+ELH_post <- ELH_post[, !(names(ELH_post) == "Area")]
+
+ELH_post <- ELH_post[, !(names(ELH_post) == "Which.instructional.element.did.you.find.most.beneficial.for.your.learning.")]
+ELH_post <- ELH_post[, !(names(ELH_post) == "What.were.the.strengths.of.the.course.")]
+ELH_post <- ELH_post[, !(names(ELH_post) == "What.aspects.of.the.course..if.any..do.you.believe.could.be.improved..How.")]
+ELH_post <- ELH_post[, !(names(ELH_post) == "Were.there.any.specific.topics.or.areas.related.to.AI.in.healthcare.that.you.wished.were.covered.in.more.detail..
+")]
+ELH_post <- ELH_post[, -14]
+ELH_post <- ELH_post[, !(names(ELH_post) == "If.you.would.be.interested.in.a.quarterly.webinar.for.updates.and.booster.on.AI.understanding.and.implementation..please.provide.your.email.address.")]
+
+
+ELH_post[] <- lapply(ELH_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("not at all", x, ignore.case = TRUE)] <- 1
+  x[grepl("slightly", x, ignore.case = TRUE)] <- 2
+  x[grepl("moderately", x, ignore.case = TRUE)] <- 3
+  x[grepl("very", x, ignore.case = TRUE)] <- 4
+  x[grepl("extremely", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+ELH_post[] <- lapply(ELH_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("Strongly diagree", x, ignore.case = TRUE)] <- 1
+  x[grepl("diagree", x, ignore.case = TRUE)] <- 2
+  x[grepl("Neutral", x, ignore.case = TRUE)] <- 3
+  x[grepl("Agree", x, ignore.case = TRUE)] <- 4
+  x[grepl("Strongly agree", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+ELH_post[] <- lapply(ELH_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("No under", x, ignore.case = TRUE)] <- 1
+  x[grepl("Limited", x, ignore.case = TRUE)] <- 2
+  x[grepl("Some", x, ignore.case = TRUE)] <- 3
+  x[grepl("Good", x, ignore.case = TRUE)] <- 4
+  x[grepl("Comprehensive", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+colnames(ELH_post)
+
+```
+```{r}
+ELH_post <- ELH_post %>% 
+  rename_at(vars(4), ~ c("How.confident.are.you.in.identifying.and.collaborating.with.industry.partners.to.meet.a.need."))
+
+colnames(ELH_post)
+head(ELH_post)
+```
+
+```{r}
+library(tidyr)
+library(dplyr)
+# Transpose and count responses for ELH_pre
+
+ELH_pre_transposed <- ELH_pre %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+
+# Transpose and count responses for ELH_post
+
+ELH_post_transposed <- ELH_post %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+ 
+# View the transposed data frames
+
+ELH_pre_transposed$PRE_POST <- "Pre"
+ELH_post_transposed$PRE_POST <- "Post"
+ELH<-rbind(ELH_pre_transposed, ELH_post_transposed)
+
+
+# Get unique values in the "question" column for ELH_pre_transposed and ELH_post_transposed
+pre_question_values <- unique(ELH_pre_transposed$question)
+post_question_values <- unique(ELH_post_transposed$question)
+
+# Find values in the "question" column of ELH_pre_transposed but not in ELH_post_transposed
+different_question_values <- setdiff(pre_question_values, post_question_values)
+
+# Print the different question values
+print(different_question_values)
+```
+
+
+```{r, echo = FALSE, results='hide'}
+
+new_colnames <- c("Question",  "1", "2", "3", "4", "5", "PRE/POST")
+
+# Rename the columns in ELH
+colnames(ELH) <- new_colnames
+
+# Check the updated column names
+colnames(ELH)
+
+ELH_counts<- ELH
+```
+
+```{r, echo = FALSE, results='hide'}
+# Convert the counts in columns 1:5 to percentages based on the values in the PRE/POST column
+ELH$`1` <- ifelse(ELH$`PRE/POST` == "Pre", ELH$`1` / pre_count * 100, ELH$`1` / post_count * 100)
+ELH$`2` <- ifelse(ELH$`PRE/POST` == "Pre", ELH$`2` / pre_count * 100, ELH$`2` / post_count * 100)
+ELH$`3` <- ifelse(ELH$`PRE/POST` == "Pre", ELH$`3` / pre_count * 100, ELH$`3` / post_count * 100)
+ELH$`4` <- ifelse(ELH$`PRE/POST` == "Pre", ELH$`4` / pre_count * 100, ELH$`4` / post_count * 100)
+ELH$`5` <- ifelse(ELH$`PRE/POST` == "Pre", ELH$`5` / pre_count * 100, ELH$`5` / post_count * 100)
+
+# Check the updated dataframe
+head(ELH)
+
+```
+
+ #QUESTION COMPARISONS (PRE VS. POST)
+```{r, results='hide', fig.width=10}
+# Change factor levels to ensure Pre bars are displayed before Post bars
+ELH$`PRE/POST` <- factor(ELH$`PRE/POST`, levels = c("Pre", "Post"))
+
+setwd("C:/ELH-ELAM_histograms")
+
+# Define output directory
+output_dir <- "plots/ELH/"
+
+# Create the directory if it does not exist
+dir.create(output_dir, showWarnings = FALSE)
+# Define colors for "Pre" and "Post"
+pre_color <- "#00002D"
+post_color <- "#06ABEB"
+
+# Iterate over each unique question
+for (question in unique(ELH$Question)) {
+  # Subset the data for the current question
+  question_data <- subset(ELH, Question == question)
+  
+  # Determine the available factors in PRE/POST column for this question
+  available_factors <- unique(question_data$`PRE/POST`)
+  
+  # Adjust the labels based on the presence of "Pre" and "Post"
+  labels <- if ("Pre" %in% available_factors & "Post" %in% available_factors) {
+    c("Pre, n = 42", "Post, n = 20")
+  } else if ("Pre" %in% available_factors) {
+    "Pre, n = 42"
+  } else {
+    "Post, n = 20"
+  }
+  
+  # Reshape the data from wide to long format
+  question_data_long <- pivot_longer(question_data, cols = `1`:`5`, names_to = "Rating", values_to = "Count")
+  
+  # Plot for the current question
+  plot <- ggplot(question_data_long, aes(x = Rating, y = Count, fill = factor(`PRE/POST`))) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste("Question:", question, "\n"),
+         x = "Rating",
+         y = "Percentage") +
+    scale_fill_manual(name = "PRE/POST",
+                      labels = labels,
+                      values = c("Pre" = pre_color, "Post" = post_color))  # Assigning colors based on labels
+  
+  # Print the plot
+  print(plot) 
+  
+    # Save the plot as an image
+  ggsave(filename = paste0(output_dir, "question_", question, ".png"),
+         plot = plot,
+         width = 10, height = 6, units = "in")
+}
+```
+
+
+```{r}
+ELAM_counts$ELAM_ELH<- "ELAM"
+
+ELH_counts$ELAM_ELH<- "ELH"
+
+combined_ELH_ELAM<-rbind(ELAM, ELH)
+
+total_count_pre<- pre_count + pre_count_ELAM
+total_count_post<- post_count + post_count_ELAM
+```
+
+```{r, echo = FALSE, results='hide'}
+# Convert the counts in columns 1:5 to percentages based on the values in the PRE/POST column
+combined_ELH_ELAM$`1` <- ifelse(combined_ELH_ELAM$`PRE/POST` == "Pre", combined_ELH_ELAM$`1` / total_count_pre * 100, combined_ELH_ELAM$`1` / total_count_post * 100)
+combined_ELH_ELAM$`2` <- ifelse(combined_ELH_ELAM$`PRE/POST` == "Pre", combined_ELH_ELAM$`2` / total_count_pre * 100, combined_ELH_ELAM$`2` / total_count_post * 100)
+combined_ELH_ELAM$`3` <- ifelse(combined_ELH_ELAM$`PRE/POST` == "Pre", combined_ELH_ELAM$`3` / total_count_pre * 100, combined_ELH_ELAM$`3` / total_count_post * 100)
+combined_ELH_ELAM$`4` <- ifelse(combined_ELH_ELAM$`PRE/POST` == "Pre", combined_ELH_ELAM$`4` / total_count_pre * 100, combined_ELH_ELAM$`4` / total_count_post * 100)
+combined_ELH_ELAM$`5` <- ifelse(combined_ELH_ELAM$`PRE/POST` == "Pre", combined_ELH_ELAM$`5` / total_count_pre * 100, combined_ELH_ELAM$`5` / total_count_post * 100)
+
+# Check the updated dataframe
+head(combined_ELH_ELAM)
+
+```
+
+ #QUESTION COMPARISONS (PRE VS. POST)
+```{r, results='hide', fig.width=10}
+# Change factor levels to ensure Pre bars are displayed before Post bars
+combined_ELH_ELAM$`PRE/POST` <- factor(combined_ELH_ELAM$`PRE/POST`, levels = c("Pre", "Post"))
+
+setwd("C:/ELH-ELAM_histograms")
+
+# Define output directory
+output_dir <- "plots/combined_ELH_ELAM/"
+
+# Create the directory if it does not exist
+dir.create(output_dir, showWarnings = FALSE)
+# Define colors for "Pre" and "Post"
+pre_color <- "#00002D"
+post_color <- "#DC298D"
+
+# Iterate over each unique question
+for (question in unique(combined_ELH_ELAM$Question)) {
+  # Subset the data for the current question
+  question_data <- subset(combined_ELH_ELAM, Question == question)
+  
+  # Determine the available factors in PRE/POST column for this question
+  available_factors <- unique(question_data$`PRE/POST`)
+  
+  # Adjust the labels based on the presence of "Pre" and "Post"
+  labels <- if ("Pre" %in% available_factors & "Post" %in% available_factors) {
+    c("Pre, n = 113", "Post, n = 76")
+  } else if ("Pre" %in% available_factors) {
+    "Pre, n = 113"
+  } else {
+    "Post, n = 76"
+  }
+  
+  # Reshape the data from wide to long format
+  question_data_long <- pivot_longer(question_data, cols = `1`:`5`, names_to = "Rating", values_to = "Count")
+  
+  # Plot for the current question
+  plot <- ggplot(question_data_long, aes(x = Rating, y = Count, fill = factor(`PRE/POST`))) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste("Question:", question, "\n"),
+         x = "Rating",
+         y = "Percentage") +
+    scale_fill_manual(name = "PRE/POST",
+                      labels = labels,
+                      values = c("Pre" = pre_color, "Post" = post_color))  # Assigning colors based on labels
+  
+  # Print the plot
+  print(plot) 
+  
+    # Save the plot as an image
+  ggsave(filename = paste0(output_dir, "question_", question, ".png"),
+         plot = plot,
+         width = 10, height = 6, units = "in")
+}
+```
+
+
+  

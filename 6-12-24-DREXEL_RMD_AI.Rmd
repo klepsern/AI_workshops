@@ -1,0 +1,294 @@
+---
+title: "Drexel_pre_post_barcharts_AI"
+author: "Nicklas Klepser"
+date: "2024-06-11"
+output: html_document
+---
+
+```{r , echo=FALSE, message=FALSE}
+library(RODBC)
+library(epitools)
+library(dsrTest)
+library(knitr)
+library(rvest)
+library(readxl)
+library(stringdist)
+library(dplyr)
+library(writexl)
+library(reshape)
+library(survival)
+library(mstate)
+library(foreign)
+library(haven)
+library(ggplot2)
+library(mosaic)
+library(lessR)
+library(sjlabelled)
+library(rlang)
+library(tidyverse)
+library(survey)
+library(gtsummary)
+library(utils)
+library(tidyr)
+library(rms)
+library(jtools)
+library(ggplot2)
+```
+
+
+
+
+
+#Drexel
+```{r}
+
+Drexel_pre <- read.csv("C:/Drexel_AI_survey_6_11_24/DREXEL-Pre-Survey.csv")
+Drexel_pre <- Drexel_pre[Drexel_pre$Username != "mam2073@gmail.com", ]
+Drexel_pre <- Drexel_pre[Drexel_pre$Username != "madhu.mazumdar@mountsinai.org", ]
+
+pre_count<-nrow(Drexel_pre)
+Drexel_pre <- Drexel_pre[, !(names(Drexel_pre) == "Timestamp")]
+Drexel_pre <- Drexel_pre[, !(names(Drexel_pre) == "Username")]
+Drexel_pre <- Drexel_pre[, !(names(Drexel_pre) == "Terminal.degree")]
+Drexel_pre <- Drexel_pre[, !(names(Drexel_pre) == "Area.")]
+Drexel_pre[] <- lapply(Drexel_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("not at all", x, ignore.case = TRUE)] <- 1
+  x[grepl("slightly", x, ignore.case = TRUE)] <- 2
+  x[grepl("moderately", x, ignore.case = TRUE)] <- 3
+  x[grepl("very", x, ignore.case = TRUE)] <- 4
+  x[grepl("extremely", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+Drexel_pre[] <- lapply(Drexel_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("Strongly diagree", x, ignore.case = TRUE)] <- 1
+  x[grepl("diagree", x, ignore.case = TRUE)] <- 2
+  x[grepl("Neutral", x, ignore.case = TRUE)] <- 3
+    x[grepl("Strongly agree", x, ignore.case = TRUE)] <- 5
+  x[grepl("Agree", x, ignore.case = TRUE)] <- 4
+
+  as.factor(x)
+})
+
+Drexel_pre[] <- lapply(Drexel_pre, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("No under", x, ignore.case = TRUE)] <- 1
+  x[grepl("Limited", x, ignore.case = TRUE)] <- 2
+  x[grepl("Some", x, ignore.case = TRUE)] <- 3
+  x[grepl("Good", x, ignore.case = TRUE)] <- 4
+  x[grepl("Comprehensive", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+colnames(Drexel_pre)
+head(Drexel_pre)
+```
+  
+```{r}  
+  Drexel_post <- read.csv("C:/Drexel_AI_survey_6_11_24/DREXEL-Post-Survey.csv")
+
+Drexel_post <- Drexel_post[Drexel_post$Username != "mam2073@gmail.com", ]
+Drexel_post <- Drexel_post[Drexel_post$Username != "madhu.mazumdar@mountsinai.org", ]
+
+post_count<-nrow(Drexel_post)
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "Timestamp")]
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "Username")]
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "Terminal.degree")]
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "Area")]
+
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "Which.instructional.element.did.you.find.most.beneficial.for.your.learning.")]
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "What.were.the.strengths.of.the.workshop.")]
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "What.aspects.of.the.workshop..if.any..do.you.believe.could.be.improved..How.")]
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "Were.there.any.specific.topics.or.areas.related.to.AI.in.healthcare.that.you.wished.were.covered.in.more.detail.")]
+Drexel_post <- Drexel_post[, !(names(Drexel_post) == "After.participating.in.this.workshop..what.is.the.one.step.you.would.take.for.riding.the.AI.wave..")]
+
+
+Drexel_post[] <- lapply(Drexel_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("not at all", x, ignore.case = TRUE)] <- 1
+  x[grepl("slightly", x, ignore.case = TRUE)] <- 2
+  x[grepl("moderately", x, ignore.case = TRUE)] <- 3
+  x[grepl("very", x, ignore.case = TRUE)] <- 4
+  x[grepl("extremely", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+Drexel_post[] <- lapply(Drexel_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("Strongly diagree", x, ignore.case = TRUE)] <- 1
+  x[grepl("diagree", x, ignore.case = TRUE)] <- 2
+  x[grepl("Neutral", x, ignore.case = TRUE)] <- 3
+   x[grepl("Strongly agree", x, ignore.case = TRUE)] <- 5
+  x[grepl("Agree", x, ignore.case = TRUE)] <- 4
+ 
+  as.factor(x)
+})
+
+Drexel_post[] <- lapply(Drexel_post, function(x) {
+  x <- as.character(x)  # Convert to character type to allow for pattern matching
+  x[grepl("No under", x, ignore.case = TRUE)] <- 1
+  x[grepl("Limited", x, ignore.case = TRUE)] <- 2
+  x[grepl("Some", x, ignore.case = TRUE)] <- 3
+  x[grepl("Good", x, ignore.case = TRUE)] <- 4
+  x[grepl("Comprehensive", x, ignore.case = TRUE)] <- 5
+  as.factor(x)
+})
+
+colnames(Drexel_post)
+head(Drexel_post)
+```
+```{r}
+
+Drexel_post <- Drexel_post %>% 
+  rename_at(vars(1), ~ c("How.well.do.you.feel.you.understand.the.fundamental.concepts.of.AI.")) %>%
+  rename_at(vars(6), ~ c("If.you.were.to.develop.an.AI.tool.for.your.research.or.practice..how.confident.would.you.be.identifying.and.engaging.key.partners..e.g..Drexel.Applied.Innovation...")) %>%
+    rename_at(vars(7), ~ c("How.confident.are.you.in.understanding.the.ethical.and.privacy.considerations.associated.with.the.use.of.AI.technologies.")) %>%
+   rename_at(vars(8), ~ c("How.well.do.you.think.you.understand.the.potential.biases.that.may.exist.in.AI.algorithms.")) %>%
+  rename_at(vars(9), ~ c("How.well.do.you.think.you.understand.the.regulatory.landscape.governing.the.implementation.of.AI.in.your.field.or.industry."))
+
+
+colnames(Drexel_post)
+head(Drexel_post)
+```
+
+```{r}
+library(tidyr)
+library(dplyr)
+# Transpose and count responses for Drexel_pre
+
+Drexel_pre_transposed <- Drexel_pre %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+
+# Transpose and count responses for Drexel_post
+
+Drexel_post_transposed <- Drexel_post %>%
+  gather(question, response) %>%
+  group_by(question, response) %>%
+  summarise(count = n()) %>%
+  spread(response, count, fill = 0)
+ 
+# View the transposed data frames
+
+Drexel_pre_transposed$PRE_POST <- "Pre"
+Drexel_post_transposed$PRE_POST <- "Post"
+Drexel<-rbind(Drexel_pre_transposed, Drexel_post_transposed)
+
+
+# Get unique values in the "question" column for Drexel_pre_transposed and Drexel_post_transposed
+pre_question_values <- unique(Drexel_pre_transposed$question)
+post_question_values <- unique(Drexel_post_transposed$question)
+
+# Find values in the "question" column of Drexel_pre_transposed but not in Drexel_post_transposed
+different_question_values <- setdiff(pre_question_values, post_question_values)
+
+# Print the different question values
+print(different_question_values)
+```
+
+
+```{r, echo = FALSE, results='hide'}
+
+new_colnames <- c("Question",  "1", "2", "3", "4", "5", "NA", "PRE/POST")
+
+# Rename the columns in Drexel
+colnames(Drexel) <- new_colnames
+
+# Check the updated column names
+colnames(Drexel)
+
+Drexel_counts<- Drexel
+
+pre_count<-nrow(Drexel_pre)
+post_count<-nrow(Drexel_post)
+```
+
+```{r, echo = FALSE, results='hide'}
+# Convert the counts in columns 1:5 to percentages based on the values in the PRE/POST column
+Drexel$`1` <- ifelse(Drexel$`PRE/POST` == "Pre", Drexel$`1` / pre_count * 100, Drexel$`1` / post_count * 100)
+Drexel$`2` <- ifelse(Drexel$`PRE/POST` == "Pre", Drexel$`2` / pre_count * 100, Drexel$`2` / post_count * 100)
+Drexel$`3` <- ifelse(Drexel$`PRE/POST` == "Pre", Drexel$`3` / pre_count * 100, Drexel$`3` / post_count * 100)
+Drexel$`4` <- ifelse(Drexel$`PRE/POST` == "Pre", Drexel$`4` / pre_count * 100, Drexel$`4` / post_count * 100)
+Drexel$`5` <- ifelse(Drexel$`PRE/POST` == "Pre", Drexel$`5` / pre_count * 100, Drexel$`5` / post_count * 100)
+Drexel$`NA` <- ifelse(Drexel$`PRE/POST` == "Pre", Drexel$`NA` / pre_count * 100, Drexel$`NA` / post_count * 100)
+# Check the updated dataframe
+head(Drexel, 25)
+```
+
+```{r}
+Drexel$Question <- gsub("\\.", " ", Drexel$Question)
+```
+
+```{r}
+
+pre_count <- nrow(Drexel_pre)
+post_count <- nrow(Drexel_post)
+
+# Define the labels dynamically based on the counts
+pre_label <- paste("Pre, n =", pre_count)
+post_label <- paste("Post, n =", post_count)
+
+```
+
+ #QUESTION COMPARISONS (PRE VS. POST)
+```{r, results='hide', fig.width=10}
+# Change factor levels to ensure Pre bars are displayed before Post bars
+Drexel$`PRE/POST` <- factor(Drexel$`PRE/POST`, levels = c("Pre", "Post"))
+
+setwd("C:/DREXEL_HISTOGRAMS")
+
+# Define output directory
+output_dir <- "plots/Drexel/"
+
+# Create the directory if it does not exist
+dir.create(output_dir, showWarnings = FALSE)
+# Define colors for "Pre" and "Post"
+pre_color <- "#07294D"
+post_color <- "#FFC600"
+
+# Iterate over each unique question
+for (question in unique(Drexel$Question)) {
+  # Subset the data for the current question
+  question_data <- subset(Drexel, Question == question)
+  
+  # Determine the available factors in PRE/POST column for this question
+  available_factors <- unique(question_data$`PRE/POST`)
+  
+  # Adjust the labels based on the presence of "Pre" and "Post"
+  labels <- if ("Pre" %in% available_factors & "Post" %in% available_factors) {
+    c(pre_label, post_label)
+  } else if ("Pre" %in% available_factors) {
+    pre_label
+  } else {
+    post_label
+  }
+  
+  
+  # Reshape the data from wide to long format
+  question_data_long <- pivot_longer(question_data, cols = `1`:`NA`, names_to = "Rating", values_to = "Count")
+  
+   # Wrap the question title for the plot
+  wrapped_question <- paste(str_wrap(question, width = 100), collapse = "\n")
+  
+  # Plot for the current question
+  plot <- ggplot(question_data_long, aes(x = Rating, y = Count, fill = factor(`PRE/POST`))) +
+    geom_bar(stat = "identity", position = "dodge") +
+    labs(title = paste("Question:\n", wrapped_question),  # Wrap the question title
+         x = "Rating",
+         y = "Percentage") +
+    scale_fill_manual(name = "PRE/POST",
+                      labels = labels,
+                      values = c("Pre" = pre_color, "Post" = post_color))  # Assigning colors based on labels
+  
+  # Print the plot
+  print(plot) 
+  
+  # Save the plot as an image
+  ggsave(filename = paste0(output_dir, "question_", question, ".png"),
+         plot = plot,
+         width = 10, height = 6, units = "in")
+}
+```
